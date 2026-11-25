@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alpha-Beta-Übung</title>
+<style>
+:root{--red:#e2001a;--blue:#1d6fe0;--ink:#1c1c1c;--gray:#5c6971;--line:#cdd2d8;--panel:#f3f4f6;--ok:#15803d;--okbg:#dcf3e2;--bad:#c81e1e;--badbg:#fde2e4;--hl:#f5b400}
+*{box-sizing:border-box}
+html,body{margin:0;background:#ffffff;color:var(--ink);font-family:"Helvetica Neue",Arial,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 140px}
+h1{font-size:1.5rem;margin:0 0 6px;color:#5c6971}
+.intro{margin:0 0 12px;font-size:1rem;line-height:1.4}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-bottom:10px}
+.box{border:2px solid var(--ink);border-radius:8px;padding:8px 14px;font-size:1rem;line-height:1.5}
+.box b{font-size:1.1rem}
+.r{color:var(--red)}.b{color:var(--blue)}
+.hint{display:none;font-size:.9rem;color:var(--gray);margin:4px 0 8px}
+@media (max-width:700px) and (orientation:portrait){.hint{display:block}}
+.treewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.treewrap svg{display:block;width:100%;min-width:760px;height:auto;touch-action:manipulation}
+.klein .treewrap svg{min-width:0;max-width:760px;margin:0 auto}
+.klein .hint{display:none!important}
+.switch{display:inline-flex;border:2px solid var(--ink);border-radius:999px;overflow:hidden;align-self:center}
+.switch button{border:0;border-radius:0;padding:8px 14px;background:#ffffff;font-size:.95rem}
+.switch button[aria-pressed="true"]{background:var(--ink);color:#ffffff}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:.95rem;align-items:center}
+.legend .sw{display:inline-block;width:1.6em;height:1.1em;border-radius:4px;vertical-align:-0.15em;margin-right:6px;border:1px solid var(--line)}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center}
+button{font:inherit;font-size:1rem;font-weight:700;padding:10px 16px;border-radius:8px;border:1px solid var(--line);background:#ffffff;color:var(--ink);cursor:pointer}
+button.primary{background:var(--ink);color:#ffffff;border-color:var(--ink)}
+#summary{font-size:1rem;font-weight:700}
+.node{cursor:pointer}
+.edgehit{cursor:pointer}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:#ffffff;border-top:2px solid var(--ink);box-shadow:0 -6px 20px rgba(0,0,0,.12);padding:8px 12px 10px;display:none;z-index:10}
+.sheet.open{display:block}
+.sheet .in{max-width:900px;margin:0 auto}
+.sheet h2{font-size:1.05rem;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center}
+.fields{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.grp{display:flex;align-items:center;gap:5px}
+.grp label{font-weight:700;font-size:1.1rem;min-width:1.2em}
+.grp input{font:inherit;font-size:1.1rem;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:76px}
+.grp button{padding:6px 8px;font-size:.95rem}
+.sheet .close{padding:5px 12px}
+</style>
+</head>
+<body>
+<main>
+<h1>Alpha-Beta-Übung</h1>
+<p class="intro">Gehen Sie den Baum mit Alpha-Beta durch (Züge von links nach rechts, Start α = −∞, β = +∞).
+Tippen Sie einen <b>Knoten</b> an und tragen Sie α, β und den Wert ein, die am Ende an diesem Knoten stehen.
+Tippen Sie eine <b>Kante</b> an, um sie als abgeschnitten (<span class="r">✕</span>) zu markieren.</p>
+<div class="top">
+<div class="box">
+<b>Pruning: <span class="r">α</span> ≥ <span class="b">β</span></b><br>
+↓ <span class="r">α</span>- und <span class="b">β</span>-Werte werden weitergegeben<br>
+↑ <span class="b">MIN</span> updated <span class="b">β</span>, <span class="r">MAX</span> updated <span class="r">α</span>
+</div>
+<div class="switch" role="group" aria-label="Baumgröße"><button type="button" id="swGross" aria-pressed="true">Großer Baum</button><button type="button" id="swKlein" aria-pressed="false">Kleiner Baum</button></div>
+</div>
+<p class="hint">Tipp: Handy quer halten, den Baum seitlich wischen oder oben den kleinen Baum wählen.</p>
+<div class="treewrap"><svg id="tree" role="img" aria-label="Spielbaum für die Alpha-Beta-Übung"></svg></div>
+<div class="btns">
+<button class="primary" id="check" type="button">Prüfen</button>
+<button id="solve" type="button">Lösung zeigen</button>
+<button id="reset" type="button">Alles löschen</button>
+<span id="summary"></span>
+</div>
+<div class="legend" aria-label="Farben beim Prüfen"><span>Beim Prüfen:</span><span><span class="sw" style="background:#dcf3e2"></span>richtig (Endwert)</span><span><span class="sw" style="background:#fff1b8"></span>richtiger Zwischenwert</span><span><span class="sw" style="background:#fde2e4"></span>falsch</span></div>
+</main>
+<div class="sheet" id="sheet" role="dialog" aria-label="Knoten bearbeiten">
+<div class="in">
+<h2><span id="sheetTitle">Knoten</span><button class="close" id="close" type="button">Fertig</button></h2>
+<div class="fields">
+<div class="grp"><label for="fa" class="r">α</label><input id="fa" inputmode="numeric" autocomplete="off"><button type="button" data-f="fa" data-v="−∞">−∞</button><button type="button" data-f="fa" data-v="+∞">+∞</button></div>
+<div class="grp"><label for="fb" class="b">β</label><input id="fb" inputmode="numeric" autocomplete="off"><button type="button" data-f="fb" data-v="−∞">−∞</button><button type="button" data-f="fb" data-v="+∞">+∞</button></div>
+<div class="grp"><label for="fv">Wert</label><input id="fv" inputmode="numeric" autocomplete="off"></div>
+</div>
+</div>
+</div>
+<script>
+(function () {
+'use strict';
+var NS = 'http://www.w3.org/2000/svg';
+var RED = '#e2001a', BLUE = '#1d6fe0', INK = '#1c1c1c', GR = '#5c6971', LIGHT = '#cdd2d8';
+/* Zwei Bäume: groß (Standard) und klein (?baum=klein, fürs Handy hochkant). Kinder von links nach rechts. */
+var TREES = {
+  gross: {spec: [[[5, 3], [8, 6]], [[6, 1], [9, 4]], [[3, 2], [7, 2]]], store: 'alphabeta-uebung-v1',
+          YL: [70, 250, 440, 620], X0: 100, DX: 100, W: 1300, H: 690, FS: 1},
+  klein: {spec: [[4, 7], [2, 9], [6, 8]], store: 'alphabeta-uebung-klein-v1',
+          YL: [64, 250, 430], X0: 96, DX: 112, W: 900, H: 490, FS: 1.35}
+};
+var KLEIN = /(^|[?&])baum=klein(&|$)/.test(location.search);
+var T = KLEIN ? TREES.klein : TREES.gross, FS = T.FS;
+var STORE = T.store;
+if (KLEIN) document.body.classList.add('klein');
+document.getElementById('swGross').setAttribute('aria-pressed', String(!KLEIN));
+document.getElementById('swKlein').setAttribute('aria-pressed', String(KLEIN));
+document.getElementById('swGross').addEventListener('click', function () { if (KLEIN) location.search = ''; });
+document.getElementById('swKlein').addEventListener('click', function () { if (!KLEIN) location.search = '?baum=klein'; });
+document.getElementById('tree').setAttribute('viewBox', '0 0 ' + T.W + ' ' + T.H);
+/* ---------- Baum ---------- */
+var N = {}, ORDER = [];
+var YL = T.YL, X0 = T.X0, DX = T.DX, DEPTH = YL.length - 1;
+(function build() {
+  var nLeaf = 0;
+  /* Knoten-IDs: R, dann A/B/C, dann A1/A2 …, Blätter L0, L1 … (in Leserichtung) */
+  function mk(spec, id, lv, p) {
+    var max = lv % 2 === 0, n;
+    if (typeof spec === 'number') {
+      id = 'L' + nLeaf;
+      n = N[id] = {id: id, max: max, lv: lv, x: X0 + DX * (nLeaf + 0.5), y: YL[lv], p: p, kids: [], leaf: true, v: spec};
+      nLeaf++;
+    } else {
+      n = N[id] = {id: id, max: max, lv: lv, x: 0, y: YL[lv], p: p, kids: [], leaf: false, v: null};
+    }
+    if (p) N[p].kids.push(id);
+    ORDER.push(id);
+    if (!n.leaf) {
+      spec.forEach(function (c, i) { mk(c, lv === 0 ? 'ABCDEFGH'.charAt(i) : id + (i + 1), lv + 1, id); });
+      n.x = (N[n.kids[0]].x + N[n.kids[n.kids.length - 1]].x) / 2;
+    }
+  }
+  mk(T.spec, 'R', 0, null);
+})();
+/* ---------- Musterlösung: Alpha-Beta wie auf der Folie ---------- */
+var SOL = {}, CUT = {};
+(function solve() {
+  function ab(id, a, b) {
+    var n = N[id];
+    SOL[id] = {ah: [a], bh: [b]};
+    if (n.leaf) return n.v;
+    var v = n.max ? -Infinity : Infinity;
+    for (var i = 0; i < n.kids.length; i++) {
+      var w = ab(n.kids[i], a, b);
+      if (n.max) { v = Math.max(v, w); if (v > a) { a = v; SOL[id].ah.push(a); } }
+      else { v = Math.min(v, w); if (v < b) { b = v; SOL[id].bh.push(b); } }
+      if (a >= b) {
+        for (var j = i + 1; j < n.kids.length; j++) CUT[n.kids[j]] = true;
+        SOL[id].pruned = i < n.kids.length - 1;
+        break;
+      }
+    }
+    SOL[id].v = v;
+    return v;
+  }
+  ab('R', -Infinity, Infinity);
+  ORDER.forEach(function (id) { if (!SOL[id]) SOL[id] = {un: true}; });
+})();
+/* Bei einem "fail-low"-MAX-Knoten (alle Kinder unter α) liefert der Pseudocode der Folie α statt des Minimax-Werts.
+   Beides wird als richtig gewertet; das betrifft dann auch β und Wert des MIN-Elternknotens. */
+var ALT = {};
+(function alternatives() {
+  ORDER.forEach(function (id) {
+    var n = N[id], s = SOL[id]; if (n.leaf || s.un) return;
+    ALT[id] = {a: [last(s.ah)], b: [last(s.bh)], v: [s.v]};
+  });
+  ORDER.forEach(function (id) {
+    var n = N[id], s = SOL[id]; if (n.leaf || s.un || !n.max) return;
+    var a0 = s.ah[0];
+    if (s.v < a0) {                                   /* fail-low: Pseudocode gibt α zurück */
+      ALT[id].v.push(a0);
+      var p = n.p, sp = SOL[p];
+      if (!N[p].max && !ALT[p].b.some(function (x) { return x === a0; })) { ALT[p].b.push(a0); ALT[p].v.push(a0); }
+    }
+  });
+})();
+function last(a) { return a[a.length - 1]; }
+function fmt(v) { return v === Infinity ? '+∞' : (v === -Infinity ? '−∞' : String(v)); }
+function parse(t) {
+  t = String(t == null ? '' : t).trim().replace(/[≤≥<>=\s]/g, '').replace(/−/g, '-').toLowerCase();
+  if (!t) return null;
+  if (/^\+?(∞|inf|unendlich)$/.test(t)) return Infinity;
+  if (/^-(∞|inf|unendlich)$/.test(t)) return -Infinity;
+  var x = Number(t.replace(',', '.'));
+  return isFinite(x) ? x : NaN;
+}
+/* ---------- Zustand (Eingaben der Studierenden) ---------- */
+var state = {nodes: {}, cuts: {}};
+try { var raw = localStorage.getItem(STORE); if (raw) state = JSON.parse(raw) || state; } catch (e) {}
+state.nodes = state.nodes || {}; state.cuts = state.cuts || {};
+function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+var mode = 'edit', checked = false, cur = null;
+/* ---------- Zeichnen ---------- */
+var svg = document.getElementById('tree'), R = {};
+function sv(tag, attrs, txt) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; }
+function triPts(x, y, up) {
+  var h = 62, w = 80;
+  return up ? (x + ',' + (y - h / 2) + ' ' + (x - w / 2) + ',' + (y + h / 2) + ' ' + (x + w / 2) + ',' + (y + h / 2))
+            : (x + ',' + (y + h / 2) + ' ' + (x - w / 2) + ',' + (y - h / 2) + ' ' + (x + w / 2) + ',' + (y - h / 2));
+}
+function draw() {
+  for (var lv = 0; lv < DEPTH; lv++)
+    svg.appendChild(sv('text', {x: 6, y: YL[lv] + 9 * FS, 'font-size': 26 * FS, fill: lv % 2 ? BLUE : RED, 'font-weight': 700}, lv % 2 ? 'MIN' : 'MAX'));
+  var gE = svg.appendChild(sv('g', {})), gN = svg.appendChild(sv('g', {}));
+  R.edge = {}; R.x = {}; R.xring = {}; R.lab = {};
+  ORDER.forEach(function (id) {
+    var n = N[id]; if (!n.p) return;
+    var p = N[n.p], y1 = p.y + 31, y2 = n.y - (n.leaf ? 30 : 31);
+    R.edge[id] = gE.appendChild(sv('line', {x1: p.x, y1: y1, x2: n.x, y2: y2, stroke: GR, 'stroke-width': 3}));
+    var mx = p.x + (n.x - p.x) * 0.55, my = y1 + (y2 - y1) * 0.55;
+    R.xring[id] = gE.appendChild(sv('circle', {cx: mx, cy: my, r: 22, fill: 'none', 'stroke-width': 3, visibility: 'hidden'}));
+    R.x[id] = gE.appendChild(sv('text', {x: mx, y: my + 13, 'font-size': 38, 'text-anchor': 'middle', fill: RED, 'font-weight': 700, visibility: 'hidden'}, '✕'));
+    var hit = gE.appendChild(sv('line', {x1: p.x, y1: y1 + 8, x2: n.x, y2: y2 - 8, stroke: 'transparent', 'stroke-width': 34, 'class': 'edgehit'}));
+    hit.addEventListener('click', function () { toggleCut(id); });
+  });
+  ORDER.forEach(function (id) {
+    var n = N[id], g = gN.appendChild(sv('g', {}));
+    R['g' + id] = g;
+    if (n.leaf) {
+      g.appendChild(sv('rect', {x: n.x - 30, y: n.y - 30, width: 60, height: 60, rx: 9, fill: '#ffffff', stroke: INK, 'stroke-width': 3.5}));
+      g.appendChild(sv('text', {x: n.x, y: n.y + 11 * FS, 'font-size': 30 * FS, 'text-anchor': 'middle', fill: INK, 'font-weight': 700}, String(n.v)));
+      R['leafg' + id] = g;
+      return;
+    }
+    g.setAttribute('class', 'node');
+    var col = n.max ? RED : BLUE;
+    g.appendChild(sv('circle', {cx: n.x, cy: n.y, r: 50, fill: 'transparent'}));
+    R['halo' + id] = g.appendChild(sv('polygon', {points: triPts(n.x, n.y, n.max), fill: 'none', stroke: '#f5b400', 'stroke-width': 16, 'stroke-linejoin': 'round', opacity: 0.6, visibility: 'hidden'}));
+    R['shape' + id] = g.appendChild(sv('polygon', {points: triPts(n.x, n.y, n.max), fill: n.max ? '#fde8ea' : '#e8f0fc', stroke: col, 'stroke-width': 4, 'stroke-linejoin': 'round'}));
+    var lx = n.x + 46, ly = n.y - 8 * FS;
+    R['bga' + id] = g.appendChild(sv('rect', {x: lx - 4, y: ly - 22, width: 10, height: 28, rx: 5, fill: 'none'}));
+    R['bgb' + id] = g.appendChild(sv('rect', {x: lx - 4, y: ly + 6, width: 10, height: 28, rx: 5, fill: 'none'}));
+    R['bgv' + id] = g.appendChild(sv('rect', {x: n.x - 30, y: n.y + (n.max ? 0 : -21), width: 60, height: 28, rx: 5, fill: 'none'}));
+    R['val' + id] = g.appendChild(sv('text', {x: n.x, y: n.y + (n.max ? 21 : 1), 'font-size': 22 * Math.min(FS, 1.15), 'text-anchor': 'middle', fill: col, 'font-weight': 700}));
+    R['a' + id] = g.appendChild(sv('text', {x: lx, y: ly, 'font-size': 22 * FS, fill: RED}));
+    R['b' + id] = g.appendChild(sv('text', {x: lx, y: ly + 28 * FS, 'font-size': 22 * FS, fill: BLUE}));
+    g.addEventListener('click', function () { openSheet(id); });
+  });
+}
+function fitBg(bg, t) {
+  try { var bb = t.getBBox(); if (!bb.width) { bg.setAttribute('width', 0); return; }
+    bg.setAttribute('x', bb.x - 5); bg.setAttribute('y', bb.y - 2); bg.setAttribute('width', bb.width + 10); bg.setAttribute('height', bb.height + 4);
+  } catch (e) {}
+}
+function chain(sym, arr) { return sym + ': ' + arr.map(fmt).join(' → '); }
+function okVal(list, txt) { var x = parse(txt); if (x === null) return null; return list.some(function (y) { return y === x; }); }
+function render() {
+  var good = 0, mid = 0, bad = 0, open = 0;
+  ORDER.forEach(function (id) { if (R['halo' + id]) R['halo' + id].setAttribute('visibility', id === cur ? 'visible' : 'hidden'); });
+  ORDER.forEach(function (id) {
+    var n = N[id]; if (n.leaf) return;
+    var e = state.nodes[id] || {}, ta = R['a' + id], tb = R['b' + id], tv = R['val' + id];
+    if (mode === 'solution') {
+      var s = SOL[id];
+      if (s.un) { ta.textContent = ''; tb.textContent = ''; tv.textContent = ''; return; }
+      ta.textContent = chain('α', s.ah); tb.textContent = chain('β', s.bh);
+      tv.textContent = (s.pruned ? (n.max ? '≥' : '≤') : '') + fmt(s.v);
+      ['bga', 'bgb', 'bgv'].forEach(function (k) { R[k + id].setAttribute('fill', 'none'); });
+      return;
+    }
+    ta.textContent = e.a ? 'α: ' + e.a : 'α: ?'; tb.textContent = e.b ? 'β: ' + e.b : 'β: ?';
+    tv.textContent = e.v || '';
+    if (SOL[id].un) { ['bga', 'bgb', 'bgv'].forEach(function (k) { R[k + id].setAttribute('fill', 'none'); }); return; }
+    [['a', 'bga', ta, ALT[id].a, SOL[id].ah], ['b', 'bgb', tb, ALT[id].b, SOL[id].bh], ['v', 'bgv', tv, ALT[id].v, []]].forEach(function (q) {
+      var bg = R[q[1] + id], r = checked ? okVal(q[3], e[q[0]]) : undefined;
+      if (r === false && okVal(q[4], e[q[0]])) r = 'mid';
+      if (r === true) good++; else if (r === 'mid') mid++; else if (r === false) bad++; else if (checked) open++;
+      bg.setAttribute('fill', r === true ? '#dcf3e2' : (r === 'mid' ? '#fff1b8' : (r === false ? '#fde2e4' : 'none')));
+      fitBg(bg, q[2]);
+    });
+  });
+  var cutGood = 0, cutBad = 0, cutMiss = 0;
+  ORDER.forEach(function (id) {
+    if (!R.edge[id]) return;
+    var inCutTree = isInsideCut(id), sol = !!CUT[id];
+    var shown = mode === 'solution' ? sol : !!state.cuts[id];
+    R.x[id].setAttribute('visibility', shown ? 'visible' : 'hidden');
+    var faded = mode === 'solution' && (sol || inCutTree);
+    R.edge[id].setAttribute('stroke', faded ? LIGHT : GR);
+    R.edge[id].setAttribute('stroke-dasharray', faded ? '8 7' : '');
+    var ring = R.xring[id];
+    ring.setAttribute('visibility', 'hidden');
+    if (mode === 'edit' && checked && !inCutTree) {
+      if (state.cuts[id] && sol) cutGood++;
+      else if (state.cuts[id] && !sol) { cutBad++; ring.setAttribute('stroke', '#c81e1e'); ring.setAttribute('visibility', 'visible'); }
+      else if (!state.cuts[id] && sol) cutMiss++;
+    }
+    if (mode === 'edit' && checked && state.cuts[id] && sol) { ring.setAttribute('stroke', '#15803d'); ring.setAttribute('visibility', 'visible'); }
+  });
+  ORDER.forEach(function (id) {
+    R['g' + id].setAttribute('opacity', mode === 'solution' && (CUT[id] || isInsideCut(id)) ? 0.35 : 1);
+  });
+  var sum = document.getElementById('summary');
+  if (mode === 'solution') sum.textContent = 'Lösung: Wert ' + fmt(SOL.R.v) + ', ' + Object.keys(CUT).length + (Object.keys(CUT).length === 1 ? ' Schnitt' : ' Schnitte');
+  else if (checked) sum.textContent = 'Einträge: ' + good + ' richtig, ' + (mid ? mid + ' Zwischenwert' + (mid > 1 ? 'e' : '') + ' (noch nicht der Endwert), ' : '') + bad + ' falsch, ' + open + ' offen. Schnitte: ' + cutGood + ' richtig' +
+    (cutBad ? ', ' + cutBad + ' zu viel' : '') + (cutMiss ? ', ' + cutMiss + ' fehlen' : '') + '.';
+  else sum.textContent = '';
+}
+function isInsideCut(id) { var p = N[id].p; while (p) { if (CUT[p]) return true; p = N[p].p; } return false; }
+function toggleCut(id) {
+  if (mode !== 'edit') return;
+  if (state.cuts[id]) delete state.cuts[id]; else state.cuts[id] = true;
+  save(); render();
+}
+/* ---------- Eingabe ---------- */
+var sheet = document.getElementById('sheet');
+var F = {a: document.getElementById('fa'), b: document.getElementById('fb'), v: document.getElementById('fv')};
+function name(id) { return id === 'R' ? 'Wurzel (MAX)' : 'Knoten ' + id + (N[id].max ? ' (MAX)' : ' (MIN)'); }
+function openSheet(id) {
+  if (mode !== 'edit') return;
+  cur = id; var e = state.nodes[id] || {};
+  document.getElementById('sheetTitle').textContent = name(id);
+  F.a.value = e.a || ''; F.b.value = e.b || ''; F.v.value = e.v || '';
+  sheet.classList.add('open');
+  render();
+  document.body.style.paddingBottom = sheet.offsetHeight + 'px';
+  var h = R['halo' + id]; if (h) { var r = h.getBoundingClientRect(), free = window.innerHeight - sheet.offsetHeight;
+    if (r.top < 8 || r.bottom > free - 8) window.scrollBy({top: r.top - Math.max(8, (free - r.height) / 2), behavior: 'smooth'}); }
+}
+function closeSheet() { sheet.classList.remove('open'); document.body.style.paddingBottom = ''; cur = null; if (document.activeElement) document.activeElement.blur(); render(); }
+function store() {
+  if (!cur) return;
+  state.nodes[cur] = {a: F.a.value.trim(), b: F.b.value.trim(), v: F.v.value.trim()};
+  save(); render();
+}
+['a', 'b', 'v'].forEach(function (k) { F[k].addEventListener('input', store); });
+Array.prototype.forEach.call(sheet.querySelectorAll('button[data-f]'), function (bt) {
+  bt.addEventListener('click', function () { document.getElementById(bt.getAttribute('data-f')).value = bt.getAttribute('data-v'); store(); });
+});
+document.getElementById('close').addEventListener('click', closeSheet);
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' || (e.key === 'Enter' && cur)) closeSheet(); });
+document.getElementById('check').addEventListener('click', function () {
+  if (mode === 'solution') toggleSolution();
+  checked = true; closeSheet(); render();
+});
+var solveBtn = document.getElementById('solve');
+function toggleSolution() {
+  mode = mode === 'solution' ? 'edit' : 'solution';
+  solveBtn.textContent = mode === 'solution' ? 'Lösung ausblenden' : 'Lösung zeigen';
+  closeSheet(); render();
+}
+solveBtn.addEventListener('click', toggleSolution);
+document.getElementById('reset').addEventListener('click', function () {
+  state = {nodes: {}, cuts: {}}; checked = false; save();
+  if (mode === 'solution') toggleSolution(); else render();
+});
+draw();
+render();
+window.__abu = {SOL: SOL, CUT: CUT, ALT: ALT, state: function () { return state; }};
+})();
+</script>
+</body>
+</html>
